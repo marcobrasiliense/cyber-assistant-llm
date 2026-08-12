@@ -4,6 +4,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hugging Face](https://img.shields.io/badge/Hugging_Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/)
 [![Gradio](https://img.shields.io/badge/Gradio-FF7C00?style=for-the-badge&logo=gradio&logoColor=white)](https://gradio.app/)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
 **CyberAssistant LLM** is a domain-specialized AI assistant designed for cybersecurity analysis, secure code review, and vulnerability mitigation. Powered by a fine-tuned **Qwen2.5-1.5B-Instruct** base model via Parameter-Efficient Fine-Tuning (**PEFT / LoRA**), the application delivers high-precision technical answers without commercial "over-refusal" bottlenecks.
 
@@ -12,9 +13,10 @@
 ## ✨ Key Features
 
 * **Domain-Adapted Intelligence**: Fine-tuned on cybersecurity datasets (`marcobrasiliense/qwen-lora-sec`) for specialized guidance in OWASP Top 10, MITRE ATT&CK, secure C/Python coding, and reverse engineering.
-* **Modular Enterprise Architecture**: Built using decoupled layers (`Config`, `ModelService`, and `UI`) following 12-Factor App and SOLID software principles.
+* **Modular Enterprise Architecture**: Built using decoupled layers (`Config`, `DatabaseManager`, `ModelService`, and `UI`) following 12-Factor App and SOLID software principles.
+* **Token-Efficient Context Management**: Integrates an embedded SQLite database (`cyber_assistant.db`) featuring a **Sliding Window** mechanism to restrict context history length, drastically lowering VRAM usage and preventing Out-Of-Memory (OOM) errors.
 * **Real-Time Token Streaming**: Implements non-blocking multi-threaded inference with `TextIteratorStreamer` for near-instantaneous Time-To-First-Token (TTFT).
-* **Automated Benchmarking Suite**: Includes `src/eval.py` to continuously evaluate and log model outputs against technical security scenarios (`eval_results.json`).
+* **Automated Benchmarking & DB Inspection**: Includes `src/eval.py` for automated quality evaluation and `src/inspect_db.py` to audit persisted chat records.
 
 ---
 
@@ -24,8 +26,10 @@
 cyber-assistant-llm/
 ├── src/
 │   ├── __init__.py          # Package initialization
-│   ├── config.py            # Centralized hyperparameter and system configuration
-│   ├── model_service.py     # Core LLM loading, pipeline management, and streaming
+│   ├── config.py            # Centralized hyperparameter, DB, and system configuration
+│   ├── database.py          # SQLite persistence manager & sliding window logic
+│   ├── model_service.py     # Core LLM pipeline management, DB integration, and streaming
+│   ├── inspect_db.py        # Terminal utility script to inspect stored chat logs
 │   └── app.py               # Gradio web user interface
 ├── src/eval.py              # Automated benchmark evaluation script
 ├── eval_results.json        # Persisted benchmark output reports
@@ -66,7 +70,7 @@ pip install -r requirements.txt
 
 ### 1. Interactive Web Interface (Gradio)
 
-Launch the user interface with real-time streaming:
+Launch the user interface with real-time streaming and SQLite persistence:
 
 ```bash
 python -m src.app
@@ -77,7 +81,15 @@ Once initialized, open your browser and navigate to:
 [http://127.0.0.1:7860](http://127.0.0.1:7860)
 ```
 
-### 2. Automated Evaluation Benchmark
+### 2. Inspecting Persisted Database Messages
+
+Audit the conversation history stored in `cyber_assistant.db` directly from your terminal:
+
+```bash
+python src/inspect_db.py
+```
+
+### 3. Automated Evaluation Benchmark
 
 Run the benchmark test suite to evaluate model accuracy and generate an updated `eval_results.json` report:
 
@@ -95,7 +107,9 @@ All application settings are managed centrally in `src/config.py` and can be ove
 | :--- | :--- | :--- |
 | `BASE_MODEL_ID` | `Qwen/Qwen2.5-1.5B-Instruct` | Base LLM identifier from Hugging Face |
 | `LORA_PATH` | `marcobrasiliense/qwen-lora-sec` | Fine-tuned LoRA adapter repository |
+| `DB_PATH` | `cyber_assistant.db` | Local SQLite database file location |
 | `MAX_NEW_TOKENS` | `1024` | Maximum tokens per generated response |
+| `MAX_HISTORY_LIMIT`| `8` | Maximum recent message turns sent to LLM (Sliding Window) |
 | `TEMPERATURE` | `0.3` | Controls randomness (lower = more deterministic) |
 | `TOP_P` | `0.9` | Nucleus sampling probability threshold |
 
