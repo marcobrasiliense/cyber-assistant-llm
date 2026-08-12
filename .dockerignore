@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+.env
+.venv/
+venv/
+miniconda3/
+.idea/
+.vscode/
+cyber_assistant.db
+eval_results.json
+.cache/

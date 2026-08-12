@@ -1,16 +1,19 @@
 import torch
+from pathlib import Path
 from threading import Thread
 from transformers import AutoTokenizer, AutoModelForCausalLM, TextIteratorStreamer
 from peft import PeftModel
 from src.config import Config
+from src.database import DatabaseManager
 
 
 class CyberModelService:
-    """Service class responsible for loading the LLM pipeline and handling inferences."""
+    """Service class responsible for loading LLM pipeline, database persistence, and streaming."""
 
     def __init__(self):
         self.config = Config
         self.device = self.config.DEVICE
+        self.db = DatabaseManager(self.config.DB_PATH)
         self.tokenizer = None
         self.model = None
         self._load_model()
@@ -58,29 +61,24 @@ class CyberModelService:
             return "".join(parts)
         return str(content)
 
-    def _prepare_messages(self, message, history):
-        """Internal helper function to format chat history into Qwen chat template structure."""
+    def _prepare_messages(self, session_id: str, current_message: str) -> list:
+        """Loads last N messages from SQLite database to restrict token context length."""
+        recent_history = self.db.get_recent_history(
+            session_id=session_id,
+            limit=self.config.MAX_HISTORY_LIMIT
+        )
+
         messages = [{"role": "system", "content": self.config.SYSTEM_PROMPT}]
+        messages.extend(recent_history)
+        messages.append({"role": "user", "content": current_message})
 
-        for item in history:
-            if isinstance(item, dict):
-                role = item.get("role", "user")
-                content = self._extract_clean_text(item.get("content", ""))
-                messages.append({"role": role, "content": content})
-            elif isinstance(item, (list, tuple)) and len(item) == 2:
-                u, a = item
-                if u:
-                    messages.append({"role": "user", "content": self._extract_clean_text(u)})
-                if a:
-                    messages.append({"role": "assistant", "content": self._extract_clean_text(a)})
-
-        user_text = self._extract_clean_text(message)
-        messages.append({"role": "user", "content": user_text})
         return messages
 
-    def generate_response(self, message, history) -> str:
-        """Synchronous generation (used for automated benchmarks like eval.py)."""
-        messages = self._prepare_messages(message, history)
+    def generate_response(self, message: str, session_id: str = "default_session") -> str:
+        """Synchronous generation with SQLite persistence (used for benchmarks/eval.py)."""
+        clean_user_message = self._extract_clean_text(message)
+        messages = self._prepare_messages(session_id, clean_user_message)
+
         text_input = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -102,11 +100,17 @@ class CyberModelService:
             outputs[0][inputs.input_ids.shape[1]:],
             skip_special_tokens=True
         )
+
+        self.db.add_message(session_id, "user", clean_user_message)
+        self.db.add_message(session_id, "assistant", response)
+
         return response
 
-    def generate_response_stream(self, message, history):
-        """Real-time streaming generation (used for web UI in app.py)."""
-        messages = self._prepare_messages(message, history)
+    def generate_response_stream(self, message: str, history: list, session_id: str = "default_session"):
+        """Real-time streaming generation with automatic SQLite persistence."""
+        clean_user_message = self._extract_clean_text(message)
+        messages = self._prepare_messages(session_id, clean_user_message)
+
         text_input = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -133,7 +137,41 @@ class CyberModelService:
         thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
         thread.start()
 
-        partial_response = ""
+        full_response = ""
         for new_text in streamer:
-            partial_response += new_text
+            full_response += new_text
+            yield full_response
+
+        self.db.add_message(session_id, "user", clean_user_message)
+        self.db.add_message(session_id, "assistant", full_response)
+
+    def audit_code_file(self, file_path: str, session_id: str = "default_session"):
+        """Reads a source code file, formats a security audit prompt, and streams analysis."""
+        if not file_path:
+            yield "❌ Error: No file uploaded. Please select a source code file."
+            return
+
+        path = Path(file_path)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                code_content = f.read()
+        except Exception as e:
+            yield f"❌ Error reading file {path.name}: {str(e)}"
+            return
+
+        # Truncate source code if excessively long to prevent token explosion
+        max_chars = 4000
+        if len(code_content) > max_chars:
+            code_content = code_content[:max_chars] + "\n... [TRUNCATED DUE TO LENGTH LIMIT]"
+
+        audit_prompt = (
+            f"Perform a comprehensive Static Application Security Testing (SAST) audit on the following file ({path.name}):\n\n"
+            f"```\n{code_content}\n```\n\n"
+            "Please structure your response into:\n"
+            "1. **Identified Security Vulnerabilities** (Name, Severity, OWASP/CWE alignment).\n"
+            "2. **Detailed Flaw Explanation** (Why it is dangerous).\n"
+            "3. **Refactored & Secure Code** (Provide the fully corrected version)."
+        )
+
+        for partial_response in self.generate_response_stream(audit_prompt, history=[], session_id=session_id):
             yield partial_response
