@@ -1,9 +1,32 @@
+# Byte-compiled / Python Cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Environment & Secret Files
+.env
+.env.*
+!.env.example
+
+# Virtual Environments & Conda
 .venv/
 venv/
-.DS_Store
-*.zip
+env/
+ENV/
+miniconda3/
+
+# IDEs & Code Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Model Checkpoints & Local Cache
+.cache/
+huggingface/
 *.bin
-*.pt
 *.safetensors
+
+# OS Generated Metadata
+.DS_Store
+Thumbs.db

@@ -1,11 +1,12 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from threading import Thread
+from transformers import AutoTokenizer, AutoModelForCausalLM, TextIteratorStreamer
 from peft import PeftModel
 from src.config import Config
 
 
 class CyberModelService:
-    """Service class responsible for loading the LLM pipeline and generating responses."""
+    """Service class responsible for loading the LLM pipeline and handling inferences."""
 
     def __init__(self):
         self.config = Config
@@ -57,8 +58,8 @@ class CyberModelService:
             return "".join(parts)
         return str(content)
 
-    def generate_response(self, message, history) -> str:
-        """Processes conversation history and produces a completed LLM response."""
+    def _prepare_messages(self, message, history):
+        """Internal helper function to format chat history into Qwen chat template structure."""
         messages = [{"role": "system", "content": self.config.SYSTEM_PROMPT}]
 
         for item in history:
@@ -75,7 +76,11 @@ class CyberModelService:
 
         user_text = self._extract_clean_text(message)
         messages.append({"role": "user", "content": user_text})
+        return messages
 
+    def generate_response(self, message, history) -> str:
+        """Synchronous generation (used for automated benchmarks like eval.py)."""
+        messages = self._prepare_messages(message, history)
         text_input = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -98,3 +103,37 @@ class CyberModelService:
             skip_special_tokens=True
         )
         return response
+
+    def generate_response_stream(self, message, history):
+        """Real-time streaming generation (used for web UI in app.py)."""
+        messages = self._prepare_messages(message, history)
+        text_input = self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        inputs = self.tokenizer(text_input, return_tensors="pt").to(self.device)
+
+        streamer = TextIteratorStreamer(
+            self.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True
+        )
+
+        generation_kwargs = dict(
+            **inputs,
+            streamer=streamer,
+            max_new_tokens=self.config.MAX_NEW_TOKENS,
+            temperature=self.config.TEMPERATURE,
+            top_p=self.config.TOP_P,
+            do_sample=True,
+            pad_token_id=self.tokenizer.pad_token_id
+        )
+
+        thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
+        thread.start()
+
+        partial_response = ""
+        for new_text in streamer:
+            partial_response += new_text
+            yield partial_response

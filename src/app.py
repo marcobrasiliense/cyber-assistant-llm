@@ -13,8 +13,9 @@ from src.model_service import CyberModelService
 service = CyberModelService()
 
 def respond(message, history):
-    """Bride function between Gradio UI and CyberModelService"""
-    return service.generate_response(message, history)
+    """Bride function yielding streamed tokens to Gradio UI"""
+    for partial_response in service.generate_response_stream(message, history):
+        yield partial_response
 
 #Configure User Interface
 demo = gr.ChatInterface(

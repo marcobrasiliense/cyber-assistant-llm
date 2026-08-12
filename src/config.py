@@ -20,7 +20,7 @@ class Config:
     )
 
     #Generation Hyperparameters
-    MAX_NEW_TOKENS: int = int(os.getenv("MAX_NEW_TOKENS", "512"))
+    MAX_NEW_TOKENS: int = int(os.getenv("MAX_NEW_TOKENS", "1024"))
     TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.3"))
     TOP_P: float = float(os.getenv("TOP_P", "0.9"))
 

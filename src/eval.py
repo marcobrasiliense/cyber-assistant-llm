@@ -12,19 +12,24 @@ from src.model_service import CyberModelService
 # Test dataset containing technical cybersecurity scenarios
 EVAL_BENCHMARK = [
     {
-        "category": "Web Security",
-        "prompt": "How do I secure a Python Flask application against SQL Injection?",
-        "expected_topics": ["parameterized queries", "ORMs", "input sanitization"]
+        "category": "Web & API Security",
+        "prompt": "How do I prevent Broken Object Level Authorization (BOLA / IDOR) in a Python FastAPI backend?",
+        "expected_topics": ["ownership verification", "middleware/dependencies", "UUIDs over sequential IDs"]
     },
     {
-        "category": "Reverse Engineering",
-        "prompt": "What are the key steps when performing static analysis on an unknown ELF binary in Linux?",
-        "expected_topics": ["strings", "objdump/GDB/Ghidra", "header inspection", "permissions"]
+        "category": "Secure Coding",
+        "prompt": "Analyze this C code for vulnerabilities and rewrite it securely:\n\n```c\n#include <stdio.h>\n#include <string.h>\n\nvoid login() {\n    char password[16];\n    printf(\"Enter password: \");\n    gets(password);\n}\n```",
+        "expected_topics": ["gets() buffer overflow", "fgets() substitution", "stack protection"]
     },
     {
-        "category": "Cryptography",
-        "prompt": "Why should password hashes use salt, and what hashing algorithm is recommended today?",
-        "expected_topics": ["argon2", "bcrypt", "rainbow tables", "unique salt per user"]
+        "category": "Reverse Engineering & Malware Analysis",
+        "prompt": "What are the core differences between static analysis and dynamic analysis when examining a suspicious Linux binary?",
+        "expected_topics": ["disassembly vs sandboxing", "strace/gdb", "strings/readelf", "safety precautions"]
+    },
+    {
+        "category": "Cryptography & Authentication",
+        "prompt": "Why is Argon2id preferred over standard MD5 or SHA256 for password storage, and how does salt fit in?",
+        "expected_topics": ["memory-hard algorithm", "GPU/ASIC resistance", "unique salt", "CPU time cost"]
     }
 ]
 
