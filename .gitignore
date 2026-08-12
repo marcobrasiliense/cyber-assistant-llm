@@ -30,3 +30,8 @@ huggingface/
 # OS Generated Metadata
 .DS_Store
 Thumbs.db
+
+# SQLite Databases
+*.db
+*.sqlite
+*.sqlite3
