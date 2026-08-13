@@ -1,22 +1,21 @@
-# 🛡️ CyberAssistant LLM
-
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hugging Face](https://img.shields.io/badge/Hugging_Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/)
 [![Gradio](https://img.shields.io/badge/Gradio-FF7C00?style=for-the-badge&logo=gradio&logoColor=white)](https://gradio.app/)
 [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
 **CyberAssistant LLM** is a domain-specialized AI assistant designed for cybersecurity analysis, secure code review, and vulnerability mitigation. Powered by a fine-tuned **Qwen2.5-1.5B-Instruct** base model via Parameter-Efficient Fine-Tuning (**PEFT / LoRA**), the application delivers high-precision technical answers without commercial "over-refusal" bottlenecks.
-
 ---
 
 ## ✨ Key Features
 
 * **Domain-Adapted Intelligence**: Fine-tuned on cybersecurity datasets (`marcobrasiliense/qwen-lora-sec`) for specialized guidance in OWASP Top 10, MITRE ATT&CK, secure C/Python coding, and reverse engineering.
+* **Automated SAST Code Auditor**: Dedicated UI tab allowing developers and security analysts to upload source code files (`.py`, `.c`, `.js`, `.sql`, etc.) for automated vulnerability scanning, CWE alignment, and refactored code fixes.
 * **Modular Enterprise Architecture**: Built using decoupled layers (`Config`, `DatabaseManager`, `ModelService`, and `UI`) following 12-Factor App and SOLID software principles.
 * **Token-Efficient Context Management**: Integrates an embedded SQLite database (`cyber_assistant.db`) featuring a **Sliding Window** mechanism to restrict context history length, drastically lowering VRAM usage and preventing Out-Of-Memory (OOM) errors.
 * **Real-Time Token Streaming**: Implements non-blocking multi-threaded inference with `TextIteratorStreamer` for near-instantaneous Time-To-First-Token (TTFT).
-* **Automated Benchmarking & DB Inspection**: Includes `src/eval.py` for automated quality evaluation and `src/inspect_db.py` to audit persisted chat records.
+* **GPU-Accelerated Containerization**: Full Docker support with NVIDIA Container Runtime integration and persistent host volume mapping for the SQLite database.
 
 ---
 
@@ -30,9 +29,11 @@ cyber-assistant-llm/
 │   ├── database.py          # SQLite persistence manager & sliding window logic
 │   ├── model_service.py     # Core LLM pipeline management, DB integration, and streaming
 │   ├── inspect_db.py        # Terminal utility script to inspect stored chat logs
-│   └── app.py               # Gradio web user interface
+│   └── app.py               # Gradio web user interface (Chat & SAST Auditor)
 ├── src/eval.py              # Automated benchmark evaluation script
 ├── eval_results.json        # Persisted benchmark output reports
+├── Dockerfile               # Container build file for GPU execution
+├── .dockerignore            # Docker build ignore rules
 ├── requirements.txt         # Project dependencies
 └── README.md                # Project documentation
 ```
@@ -81,7 +82,23 @@ Once initialized, open your browser and navigate to:
 [http://127.0.0.1:7860](http://127.0.0.1:7860)
 ```
 
-### 2. Inspecting Persisted Database Messages
+### 2. Running via Docker Container (GPU Accelerated)
+
+Build the image and run the application in an isolated container with persistent database mapping: 
+
+```bash
+docker build -t cyber-assistant-llm .
+
+# Run container with NVIDIA GPU support
+docker run -d \
+  --name cyber-assistant \
+  --runtime=nvidia \
+  -p 7860:7860 \
+  -v $(pwd)/cyber_assistant.db:/app/cyber_assistant.db \
+  cyber-assistant-llm
+```
+
+### 3. Inspecting Persisted Database Messages
 
 Audit the conversation history stored in `cyber_assistant.db` directly from your terminal:
 
@@ -89,7 +106,7 @@ Audit the conversation history stored in `cyber_assistant.db` directly from your
 python src/inspect_db.py
 ```
 
-### 3. Automated Evaluation Benchmark
+### 4. Automated Evaluation Benchmark
 
 Run the benchmark test suite to evaluate model accuracy and generate an updated `eval_results.json` report:
 

@@ -84,7 +84,7 @@ class CyberModelService:
             tokenize=False,
             add_generation_prompt=True
         )
-        inputs = self.tokenizer(text_input, return_tensors="pt").to(self.device)
+        inputs = self.tokenizer(text_input, return_tensors="pt").to(self.model.device)
 
         with torch.no_grad():
             outputs = self.model.generate(
@@ -116,7 +116,7 @@ class CyberModelService:
             tokenize=False,
             add_generation_prompt=True
         )
-        inputs = self.tokenizer(text_input, return_tensors="pt").to(self.device)
+        inputs = self.tokenizer(text_input, return_tensors="pt").to(self.model.device)
 
         streamer = TextIteratorStreamer(
             self.tokenizer,
@@ -155,11 +155,14 @@ class CyberModelService:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 code_content = f.read()
+        except UnicodeDecodeError:
+            yield f"❌ Error: Unable to read `{path.name}`. The file appears to be a binary or non-text file. Please upload plain text source code files (.py, .c, .js, .sql, etc.)."
+            return
         except Exception as e:
-            yield f"❌ Error reading file {path.name}: {str(e)}"
+            yield f"❌ Error reading file `{path.name}`: {str(e)}"
             return
 
-        # Truncate source code if excessively long to prevent token explosion
+        #Truncate source code if excessively long to prevent token explosion
         max_chars = 4000
         if len(code_content) > max_chars:
             code_content = code_content[:max_chars] + "\n... [TRUNCATED DUE TO LENGTH LIMIT]"

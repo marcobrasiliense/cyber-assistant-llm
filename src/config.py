@@ -1,6 +1,10 @@
 import os
 import torch
 from pathlib import Path
+from dotenv import load_dotenv
+
+#Load local .env file if present
+load_dotenv()
 
 class Config:
     """Central configuration management for the CyberAssistant LLM project"""
