@@ -162,7 +162,7 @@ class CyberModelService:
             yield f"❌ Error reading file `{path.name}`: {str(e)}"
             return
 
-        #Truncate source code if excessively long to prevent token explosion
+        # Truncate source code if excessively long to prevent token explosion
         max_chars = 4000
         if len(code_content) > max_chars:
             code_content = code_content[:max_chars] + "\n... [TRUNCATED DUE TO LENGTH LIMIT]"
@@ -170,10 +170,10 @@ class CyberModelService:
         audit_prompt = (
             f"Perform a comprehensive Static Application Security Testing (SAST) audit on the following file ({path.name}):\n\n"
             f"```\n{code_content}\n```\n\n"
-            "Please structure your response into:\n"
+            "Please structure your response into the following clear sections:\n"
             "1. **Identified Security Vulnerabilities** (Name, Severity, OWASP/CWE alignment).\n"
-            "2. **Detailed Flaw Explanation** (Why it is dangerous).\n"
-            "3. **Refactored & Secure Code** (Provide the fully corrected version)."
+            "2. **Detailed Flaw Explanation** (Why the flaw is dangerous).\n"
+            "3. **Refactored & Secure Code** (Provide concise, focused code snippets fixing ONLY the identified vulnerabilities. Do NOT rewrite unchanged full classes or add repetitive assertions)."
         )
 
         for partial_response in self.generate_response_stream(audit_prompt, history=[], session_id=session_id):
